@@ -3193,8 +3193,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ce61b5bd00a641a4dbcb7ccbadc7dc76, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelTarget
-  gameUI: {fileID: 0}
+  gameUI: {fileID: 320447028}
   player: {fileID: 1313397842}
+  fadeDuration: 1
+  timer: 0
 --- !u!4 &1150031056
 Transform:
   m_ObjectHideFlags: 0

@@ -6,13 +6,24 @@ using UnityEngine.UIElements;
 public class LevelTarget : MonoBehaviour
 {
     [SerializeField] UIDocument gameUI;
+    VisualElement visual;
     [SerializeField] private PlayerController player;
+
+    [SerializeField] private float fadeDuration;
+    [SerializeField] private float timer;
+    private bool isLevelComplete;
+
+    private void Start()
+    {
+        visual = gameUI.rootVisualElement.Q<VisualElement>("GameWon");
+    }
 
     private void OnTriggerEnter(Collider other)
     {
         if(other.gameObject.CompareTag("Player"))
         {
             Debug.Log("Game Ended");
+            isLevelComplete = true;
             EndGame();
         }
     }
@@ -26,7 +37,17 @@ public class LevelTarget : MonoBehaviour
 
     IEnumerator EndCoroutine()
     {
-        yield return new WaitForSeconds(.5f);
+        yield return new WaitForSeconds(fadeDuration + 0.5f);
         SceneManager.LoadScene(0);
+    }
+
+    private void Update()
+    {
+        if(isLevelComplete)
+        {
+            timer += Time.deltaTime;
+            visual.style.opacity = timer/fadeDuration;            
+        }
+
     }
 }
