@@ -82,6 +82,11 @@ public class PlayerController : MonoBehaviour
     [Header("Camera Shake")]
     [SerializeField] private CinemachineImpulseSource impulseSource;
 
+    [Header("VFX")]
+    public GameObject explosionVFX;
+
+    public GameObject spikes;
+
     private void Awake()
     {
         playerRigidbody = GetComponent<Rigidbody>();
@@ -354,7 +359,7 @@ public class PlayerController : MonoBehaviour
             Vector3 pushDirection = (enemyObject.transform.position - transform.position).normalized;
             targetRb.AddForce(pushDirection * enemyPushForce, ForceMode.Impulse);
         }
-
+        Instantiate(explosionVFX, enemyObject.transform.position, explosionVFX.transform.rotation);
         Destroy(enemyObject);
     }
 
