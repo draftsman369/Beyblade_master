@@ -360,6 +360,7 @@ public class PlayerController : MonoBehaviour
             targetRb.AddForce(pushDirection * enemyPushForce, ForceMode.Impulse);
         }
         Instantiate(explosionVFX, enemyObject.transform.position, explosionVFX.transform.rotation);
+        AudioManager.Instance.PlayExplosion();
         Destroy(enemyObject);
     }
 

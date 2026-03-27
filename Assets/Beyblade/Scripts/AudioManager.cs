@@ -6,6 +6,7 @@ public class AudioManager : MonoBehaviour
     private AudioSource audioSource;
 
     [SerializeField] private AudioClip speedBoost;
+    [SerializeField] private AudioClip explosion;
 
     private void Awake()
     {
@@ -19,6 +20,11 @@ public class AudioManager : MonoBehaviour
 
     public void PlaySpeedBoostAudio()
     {
-        audioSource.PlayOneShot(speedBoost);
+        audioSource.PlayOneShot(speedBoost, 1f);
+    }
+
+    public void PlayExplosion()
+    {
+        audioSource.PlayOneShot(explosion, 2f);
     }
 }
