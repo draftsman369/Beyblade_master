@@ -273,7 +273,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: bf1a02294bd619445839658b644d2109, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1036,7 +1036,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: bf1a02294bd619445839658b644d2109, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1974,6 +1974,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AudioManager
   speedBoost: {fileID: 8300000, guid: 668620113e9d6dc4483ba3d8dbae9fcf, type: 3}
+  explosion: {fileID: 0}
 --- !u!82 &1216352830
 AudioSource:
   m_ObjectHideFlags: 0
@@ -2625,6 +2626,8 @@ MonoBehaviour:
   flashMaxAlpha: 1
   flashDuration: 0.12
   impulseSource: {fileID: 0}
+  explosionVFX: {fileID: 0}
+  spikes: {fileID: 0}
 --- !u!114 &1313397843
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2897,7 +2900,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: bf1a02294bd619445839658b644d2109, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -3349,6 +3352,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c18f686e062448343ac35a39faf4cb8b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SpikePowerUp
+  explosionVFX: {fileID: 0}
 --- !u!135 &2115965227
 SphereCollider:
   m_ObjectHideFlags: 0

@@ -1,29 +1,32 @@
-using System.Runtime.InteropServices;
 using UnityEngine;
 using System;
 
 public class SpinPowerUp : MonoBehaviour
 {
-
-    [SerializeField] private int scorePoint;
-    [SerializeField] private float speedBoost = .15f;
-
+    [SerializeField] private int scorePoint = 1;
+    [SerializeField] private float speedBoost = 0.15f;
+    [SerializeField] private int ultimateChargeAmount = 1;
 
     public static event EventHandler OnUpdateScore;
 
     private void OnTriggerEnter(Collider other)
     {
-        if(other.transform.TryGetComponent(out PlayerController playerController))
+        if (other.transform.TryGetComponent(out PlayerController playerController))
         {
-            
-            playerController.UpdgradeSpeed(speedBoost);
-            AudioManager.Instance.PlaySpeedBoostAudio();
+            playerController.UpgradeSpeed(speedBoost);
+            playerController.AddToScore(scorePoint);
+            playerController.AddUltimateCharge(ultimateChargeAmount);
+
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlaySpeedBoostAudio();
+            }
+
             Debug.Log("ConsumedSpeedBoost");
-            playerController.AddToScore(scorePoint); 
 
             OnUpdateScore?.Invoke(this, EventArgs.Empty);
-            
-            Destroy(this.gameObject);       
+
+            Destroy(gameObject);
         }
     }
 }

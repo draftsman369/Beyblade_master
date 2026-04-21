@@ -6,20 +6,19 @@ using UnityEngine.SceneManagement;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.UI;
-using Unity.VisualScripting;
 using Unity.Cinemachine;
 
 [RequireComponent(typeof(Rigidbody))]
 public class PlayerController : MonoBehaviour
 {
-
+    [Header("Input")]
     [SerializeField] private InputAction jumpAction;
-    [SerializeField] private InputAction ultimateAction;
 
     private Rigidbody playerRigidbody;
     [SerializeField] private Transform graphic;
+    public GameObject spikes;
 
-
+    [Header("Movement")]
     [SerializeField] private float moveSpeed = 5f;
     [SerializeField] private float maxSpeed = 10f;
     [SerializeField] private float rotateSpeed = 10f;
@@ -30,18 +29,15 @@ public class PlayerController : MonoBehaviour
     private Vector3 moveDirection;
 
     [SerializeField] private bool jumpPressed;
-
-
     [SerializeField] private float jumpForce;
     [SerializeField] private float fallMultiplier;
-    
-    //Ground detection
+
+    [Header("Ground Detection")]
     [SerializeField] private Transform groundCheck;
     [SerializeField] private float groundDetectionRadius;
     [SerializeField] private LayerMask groundLayer;
 
-
-    [Header("Score values")]
+    [Header("Score Values")]
     [SerializeField] private float currentScore;
     public float Score => currentScore;
 
@@ -53,9 +49,14 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float targetReachDistance = 1.2f;
     [SerializeField] private LayerMask enemyLayer;
 
-    [SerializeField] private bool ultimatePressed;
-    private bool isUsingUltimate;
+    [Header("Ultimate Unlock")]
+    [SerializeField] private bool unlockUltimateWithTime = true;
+    [SerializeField] private float ultimateUnlockDelay = 20f;
+    [SerializeField] private bool requireUltimateCharge = true;
+    [SerializeField] private int currentUltimateCharge = 0;
+    [SerializeField] private int requiredUltimateCharge = 5;
 
+    private bool ultimateUnlocked;
 
     [Header("Ultimate Slow Motion")]
     [SerializeField] private float slowMotionScale = 0.2f;
@@ -73,7 +74,6 @@ public class PlayerController : MonoBehaviour
     private ChromaticAberration chromaticAberration;
     private Vignette vignette;
 
-
     [Header("Ultimate Flash")]
     [SerializeField] private Image ultimateFlashImage;
     [SerializeField] private float flashMaxAlpha;
@@ -82,15 +82,13 @@ public class PlayerController : MonoBehaviour
     [Header("Camera Shake")]
     [SerializeField] private CinemachineImpulseSource impulseSource;
 
-    [Header("VFX")]
-    public GameObject explosionVFX;
-
-    public GameObject spikes;
+    private PlayerState currentState;
+    private bool isRestartingLevel = false;
 
     private void Awake()
     {
         playerRigidbody = GetComponent<Rigidbody>();
-        impulseSource = this.GetComponent<CinemachineImpulseSource>();
+        impulseSource = GetComponent<CinemachineImpulseSource>();
 
         defaultFixedDeltaTime = Time.fixedDeltaTime;
 
@@ -113,73 +111,141 @@ public class PlayerController : MonoBehaviour
             if (vignette != null)
                 vignette.intensity.value = 0f;
         }
+
+        ultimateUnlocked = !unlockUltimateWithTime;
+
+        if (unlockUltimateWithTime)
+        {
+            StartCoroutine(UnlockUltimateAfterDelay());
+        }
+
+        SwitchState(new PlayerMoveState(this));
     }
 
     private void OnEnable()
     {
         jumpAction.Enable();
-        ultimateAction.Enable();
     }
 
     private void OnDisable()
     {
         jumpAction.Disable();
-        ultimateAction.Disable();
     }
 
     private void Update()
     {
-
-        ReadInput();
-        if(InputManager.Instance.UltimatePressed && !isUsingUltimate)
-        {
-    
-
-            InputManager.Instance.ConsumeUltimate();
-
-            //Add Camera Shake
-            if(impulseSource != null)
-                impulseSource.GenerateImpulse();
-            else
-                Debug.LogWarning("Impulse not set");
-
-            //StartCoroutine(UltimateFlashRoutine());
-            StartCoroutine(SlowMotionCoroutine());
-            StartCoroutine(UltimatePostProcessRoutine());
-            StartCoroutine(UltimateRoutine());
-        }
-
+        currentState?.Update();
     }
 
     private void FixedUpdate()
     {
-        if(isUsingUltimate) return;
-
-        HandleJump();
-        Move();
-        CheckGameOver();
-        //ApplyGravity();
+        currentState?.FixedUpdate();
     }
 
-    private void ReadInput()
+    public void SwitchState(PlayerState newState)
     {
-        moveInput = InputManager.Instance.GetMoveInput();
+        currentState?.Exit();
+        currentState = newState;
+        currentState.Enter();
+    }
 
-        if(jumpAction.WasPressedThisFrame())
+    public void ReadInput()
+    {
+        if (InputManager.Instance != null)
+        {
+            moveInput = InputManager.Instance.GetMoveInput();
+        }
+
+        if (jumpAction.WasPressedThisFrame())
         {
             jumpPressed = true;
         }
     }
 
+    public bool TryConsumeUltimateInput()
+    {
+        if (InputManager.Instance == null || !InputManager.Instance.UltimatePressed)
+            return false;
+
+        InputManager.Instance.ConsumeUltimate();
+        return true;
+    }
+
+    public bool CanStartUltimate()
+    {
+        if (!ultimateUnlocked)
+            return false;
+
+        if (requireUltimateCharge && currentUltimateCharge < requiredUltimateCharge)
+            return false;
+
+        return true;
+    }
+
+    public void BeginUltimateEffects()
+    {
+        if (impulseSource != null)
+            impulseSource.GenerateImpulse();
+        else
+            Debug.LogWarning("Impulse not set");
+
+        StartCoroutine(SlowMotionCoroutine());
+        StartCoroutine(UltimatePostProcessRoutine());
+    }
+
+    public void StartUltimateStateRoutine()
+    {
+        StartCoroutine(UltimateStateRoutine());
+    }
+
+    private IEnumerator UltimateStateRoutine()
+    {
+        yield return StartCoroutine(UltimateRoutine());
+        SwitchState(new PlayerMoveState(this));
+    }
+
+    private IEnumerator UnlockUltimateAfterDelay()
+    {
+        yield return new WaitForSeconds(ultimateUnlockDelay);
+        ultimateUnlocked = true;
+        Debug.Log("Ultimate unlocked!");
+    }
+
+    public void AddUltimateCharge(int amount)
+    {
+        currentUltimateCharge += amount;
+        currentUltimateCharge = Mathf.Clamp(currentUltimateCharge, 0, requiredUltimateCharge);
+
+        Debug.Log("Ultimate Charge: " + currentUltimateCharge + "/" + requiredUltimateCharge);
+    }
+
+    public void ConsumeUltimateCharge()
+    {
+        if (!requireUltimateCharge)
+            return;
+
+        currentUltimateCharge = 0;
+    }
+
+    public float GetUltimateChargeNormalized()
+    {
+        if (requiredUltimateCharge <= 0)
+            return 0f;
+
+        return (float)currentUltimateCharge / requiredUltimateCharge;
+    }
+
+    public bool IsUltimateUnlocked()
+    {
+        return ultimateUnlocked;
+    }
+
     private IEnumerator UltimateRoutine()
     {
-        isUsingUltimate = true;
-
         Collider[] hits = Physics.OverlapSphere(transform.position, ultimateDetectionRadius, enemyLayer);
 
         if (hits.Length == 0)
         {
-            isUsingUltimate = false;
             yield break;
         }
 
@@ -233,7 +299,6 @@ public class PlayerController : MonoBehaviour
         }
 
         playerRigidbody.linearVelocity = new Vector3(0f, playerRigidbody.linearVelocity.y, 0f);
-        isUsingUltimate = false;
     }
 
     private IEnumerator UltimatePostProcessRoutine()
@@ -243,7 +308,6 @@ public class PlayerController : MonoBehaviour
 
         float t = 0f;
 
-        // Fade in
         while (t < postEffectFadeInTime)
         {
             t += Time.unscaledDeltaTime;
@@ -260,12 +324,10 @@ public class PlayerController : MonoBehaviour
             yield return null;
         }
 
-        // Hold during the slow-mo moment
         yield return new WaitForSecondsRealtime(slowMotionDuration);
 
         t = 0f;
 
-        // Fade out
         while (t < postEffectFadeOutTime)
         {
             t += Time.unscaledDeltaTime;
@@ -291,50 +353,6 @@ public class PlayerController : MonoBehaviour
             vignette.intensity.value = 0f;
     }
 
-/*
-    private IEnumerator UltimateStartupTimeRoutine()
-    {
-        Time.timeScale = 0.03f;
-        Time.fixedDeltaTime = defaultFixedDeltaTime * Time.timeScale;
-        yield return new WaitForSecondsRealtime(0.04f);
-
-        Time.timeScale = 0.18f;
-        Time.fixedDeltaTime = defaultFixedDeltaTime * Time.timeScale;
-        yield return new WaitForSecondsRealtime(0.12f);
-
-        Time.timeScale = 1f;
-        Time.fixedDeltaTime = defaultFixedDeltaTime;
-    }
-*/
-
-/*For Impact Frame later
-    private IEnumerator UltimateFlashRoutine()
-    {
-        if(ultimateFlashImage != null)
-            yield break;
-        
-        Color color = ultimateFlashImage.color;
-        color.a = flashMaxAlpha;
-        ultimateFlashImage.color = color;
-
-        float timer = 0f;
-
-        while(timer < flashDuration)
-        {
-            timer += Time.unscaledDeltaTime;
-            float t = timer / flashDuration;
-
-            color.a = Mathf.Lerp(flashMaxAlpha, 0f, t);
-            ultimateFlashImage.color = color;
-
-            yield return null;
-        }
-
-        color.a = 0f;
-        ultimateFlashImage.color = color;
-    }
-*/
-
     private IEnumerator SlowMotionCoroutine()
     {
         Time.timeScale = slowMotionScale;
@@ -359,28 +377,27 @@ public class PlayerController : MonoBehaviour
             Vector3 pushDirection = (enemyObject.transform.position - transform.position).normalized;
             targetRb.AddForce(pushDirection * enemyPushForce, ForceMode.Impulse);
         }
-        Instantiate(explosionVFX, enemyObject.transform.position, explosionVFX.transform.rotation);
-        AudioManager.Instance.PlayExplosion();
+
         Destroy(enemyObject);
     }
 
-    Transform GetClosestEnemy(Collider[] hits, HashSet<Transform> alreadyHit)
+    private Transform GetClosestEnemy(Collider[] hits, HashSet<Transform> alreadyHit)
     {
         Transform closest = null;
         float closestDistance = float.MaxValue;
 
-        foreach(Collider hit in hits)
+        foreach (Collider hit in hits)
         {
-            if(hit == null)
+            if (hit == null)
                 continue;
-            
+
             Transform enemy = hit.transform;
 
-            if(alreadyHit.Contains(enemy))
+            if (alreadyHit.Contains(enemy))
                 continue;
 
             float distance = Vector3.Distance(transform.position, enemy.position);
-            if(distance < closestDistance)
+            if (distance < closestDistance)
             {
                 closestDistance = distance;
                 closest = enemy;
@@ -390,36 +407,40 @@ public class PlayerController : MonoBehaviour
         return closest;
     }
 
-    private void Move()
+    public void Move()
     {
         moveDirection.Set(moveInput.x, 0f, moveInput.y);
         moveDirection.Normalize();
 
         Vector3 currentVelocity = playerRigidbody.linearVelocity;
         Vector3 horizontalVelocity = currentVelocity;
-        horizontalVelocity.y = 0;
+        horizontalVelocity.y = 0f;
 
-        Vector3 targertVelocity = moveDirection * moveSpeed;
+        Vector3 targetVelocity = moveDirection * moveSpeed;
 
-        float rate = (targertVelocity.magnitude > 0.1f) ? acceleration : deceleration;
+        float rate = (targetVelocity.magnitude > 0.1f) ? acceleration : deceleration;
 
-        Vector3 newHorizontalVelocity = Vector3.MoveTowards(horizontalVelocity, targertVelocity, rate * Time.fixedDeltaTime);
+        Vector3 newHorizontalVelocity =
+            Vector3.MoveTowards(horizontalVelocity, targetVelocity, rate * Time.fixedDeltaTime);
 
-        playerRigidbody.linearVelocity = new Vector3(newHorizontalVelocity.x, currentVelocity.y, newHorizontalVelocity.z);
-        
-        graphic.Rotate(Vector3.up * rotateSpeed * Time.deltaTime);
+        playerRigidbody.linearVelocity =
+            new Vector3(newHorizontalVelocity.x, currentVelocity.y, newHorizontalVelocity.z);
+
+        if (graphic != null)
+        {
+            graphic.Rotate(Vector3.up * rotateSpeed * Time.deltaTime);
+        }
     }
 
-    private void HandleJump()
+    public void HandleJump()
     {
-        if(!jumpPressed)
+        if (!jumpPressed)
             return;
 
-        if(IsGrounded())
+        if (IsGrounded())
         {
             Vector3 currentVelocity = playerRigidbody.linearVelocity;
             currentVelocity.y = jumpForce;
-
             playerRigidbody.linearVelocity = currentVelocity;
             Debug.Log("Jumping");
         }
@@ -432,27 +453,33 @@ public class PlayerController : MonoBehaviour
         return Physics.CheckSphere(groundCheck.position, groundDetectionRadius, groundLayer);
     }
 
+    public void UpgradeSpeed(float speedMultiplier)
+    {
+        if ((moveSpeed + moveSpeed * speedMultiplier) >= maxSpeed + 0.5f)
+            return;
+
+        moveSpeed += moveSpeed * speedMultiplier;
+        rotateSpeed += rotateSpeed * speedMultiplier;
+    }
+
     public void UpdgradeSpeed(float speedMultiplier)
     {
-        if((moveSpeed + moveSpeed*speedMultiplier) >= maxSpeed + 0.5f)
-            return;
-        moveSpeed += moveSpeed*speedMultiplier;
-        rotateSpeed += rotateSpeed*speedMultiplier;
-    } 
+        UpgradeSpeed(speedMultiplier);
+    }
 
-
-    private void CheckGameOver()
+    public void CheckGameOver()
     {
-        if(this.transform.position.y < -10f)
+        if (transform.position.y < -10f && !isRestartingLevel)
         {
             Debug.Log("GameOver");
+            isRestartingLevel = true;
             StartCoroutine(RestartLevel());
         }
     }
 
     private IEnumerator RestartLevel()
     {
-        yield return new WaitForSeconds(2);
+        yield return new WaitForSeconds(2f);
         SceneManager.LoadScene(0);
     }
 
@@ -461,5 +488,4 @@ public class PlayerController : MonoBehaviour
         currentScore += value;
         Debug.Log(Score);
     }
-
 }
